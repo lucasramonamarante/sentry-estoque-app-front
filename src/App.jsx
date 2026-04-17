@@ -4,6 +4,9 @@ import { Plus, Trash2, Edit, Box, DollarSign, AlertTriangle, ArrowDownToLine, Ar
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, Legend } from 'recharts';
 import logoFoquinha from './assets/logo.png';
 
+// --- CONFIGURAÇÃO DA API (PRODUÇÃO KOYEB) ---
+axios.defaults.baseURL = 'https://big-blondelle-33techsentrycomunicacao-dd0eca2b.koyeb.app';
+
 const CORES_PIZZA = ['#1e3a8a', '#eab308', '#3b82f6', '#ef4444', '#10b981'];
 
 function App() {
@@ -35,16 +38,16 @@ function App() {
   const carregarPainel = async () => {
     try {
       const [resProd, resGraf, resPerf] = await Promise.all([
-        axios.get('http://localhost:3000/produtos'),
-        axios.get('http://localhost:3000/dashboard/movimentacoes'),
-        axios.get('http://localhost:3000/dashboard/performance-vendas')
+        axios.get('/produtos'),
+        axios.get('/dashboard/movimentacoes'),
+        axios.get('/dashboard/performance-vendas')
       ]);
       setProdutos(resProd.data);
       setDadosGrafico(resGraf.data);
       setDadosPerformance(resPerf.data);
 
       if (usuario?.perfil === 'ADMIN') {
-        const resEquipe = await axios.get('http://localhost:3000/usuarios');
+        const resEquipe = await axios.get('/usuarios');
         setEquipe(resEquipe.data);
       }
     } catch (erro) { console.error("Erro ao carregar dados:", erro); }
@@ -52,12 +55,12 @@ function App() {
 
   useEffect(() => {
     if (usuario) carregarPainel();
-  }, [usuario, abaAtiva]); // Recarrega sempre que mudar de aba ou logar
+  }, [usuario, abaAtiva]);
 
   const fazerLogin = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post('http://localhost:3000/auth/login', formLogin);
+      const res = await axios.post('/auth/login', formLogin);
       setUsuario(res.data.usuario);
       axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
       setAbaAtiva('estoque');
@@ -74,7 +77,7 @@ function App() {
   const cadastrarUsuario = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:3000/auth/cadastro', { ...formNovoUser, solicitante_perfil: usuario.perfil });
+      await axios.post('/auth/cadastro', { ...formNovoUser, solicitante_perfil: usuario.perfil });
       alert('Membro cadastrado com sucesso!');
       setFormNovoUser({ nome: '', email: '', senha: '', perfil: 'OPERADOR' });
       carregarPainel();
@@ -90,8 +93,8 @@ function App() {
         preco_venda: parseFloat(form.preco_venda), quantidade_atual: parseInt(form.quantidade_atual),
         quantidade_minima: parseInt(form.quantidade_minima)
       };
-      if (editandoId) await axios.put(`http://localhost:3000/produtos/${editandoId}`, payload);
-      else await axios.post('http://localhost:3000/produtos', payload);
+      if (editandoId) await axios.put(`/produtos/${editandoId}`, payload);
+      else await axios.post('/produtos', payload);
       setEditandoId(null);
       setForm({ sku: '', nome: '', preco_custo: '', preco_venda: '', quantidade_atual: '', quantidade_minima: '' });
       carregarPainel();
@@ -101,7 +104,7 @@ function App() {
   const deletarProduto = async (id) => {
     if (!window.confirm("Excluir definitivamente este produto?")) return;
     try {
-      await axios.delete(`http://localhost:3000/produtos/${id}`);
+      await axios.delete(`/produtos/${id}`);
       carregarPainel();
     } catch (erro) { alert('Erro ao excluir.'); }
   };
@@ -112,7 +115,7 @@ function App() {
     setFormMov({ quantidade: '', motivo: '' });
     if (tipo === 'HISTORICO') {
       try {
-        const res = await axios.get(`http://localhost:3000/movimentacoes/${produto.id}`);
+        const res = await axios.get(`/movimentacoes/${produto.id}`);
         setHistorico(res.data);
       } catch (err) { alert("Erro ao buscar histórico"); }
     }
@@ -122,10 +125,10 @@ function App() {
   const registrarMovimentacao = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:3000/movimentacoes', {
+      await axios.post('/movimentacoes', {
         produto_id: produtoSelecionado.id, tipo: tipoMovimentacao,
         quantidade: parseInt(formMov.quantidade), motivo: formMov.motivo,
-        usuario_id: usuario.id // Associa quem fez a movimentação!
+        usuario_id: usuario.id
       });
       setModalAtivo(false);
       carregarPainel();
@@ -160,8 +163,6 @@ function App() {
   // --- TELA PRINCIPAL (LOGADO) ---
   return (
     <div className="min-h-screen bg-slate-50 font-sans pb-12">
-      
-      {/* CABEÇALHO */}
       <header className="bg-gradient-to-r from-blue-900 to-blue-800 text-white border-b-4 border-yellow-400 p-4 shadow-md sticky top-0 z-40">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-6">
@@ -169,7 +170,6 @@ function App() {
               <img src={logoFoquinha} alt="Logo" className="h-full object-contain" />
             </div>
             
-            {/* NAVEGAÇÃO ENTRE ABAS */}
             <nav className="hidden md:flex gap-2">
               <button onClick={() => setAbaAtiva('estoque')} className={`px-4 py-2 rounded-lg font-bold transition flex items-center gap-2 ${abaAtiva === 'estoque' ? 'bg-yellow-400 text-blue-900' : 'hover:bg-blue-800/50'}`}>
                 <Package size={18} /> Painel de Estoque
@@ -193,11 +193,8 @@ function App() {
       </header>
 
       <div className="max-w-7xl mx-auto p-6 mt-6">
-        
-        {/* ABA 1: GESTÃO DE EQUIPE (SÓ ADM) */}
         {abaAtiva === 'usuarios' && isAdmin ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in duration-500">
-            {/* Form Novo Usuário */}
             <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 h-fit">
               <h2 className="text-xl font-black text-gray-800 mb-6 flex items-center gap-2"><Plus className="text-blue-600"/> Novo Membro</h2>
               <form onSubmit={cadastrarUsuario} className="flex flex-col gap-4">
@@ -212,7 +209,6 @@ function App() {
               </form>
             </div>
             
-            {/* Lista da Equipe */}
             <div className="lg:col-span-2">
               <h2 className="text-xl font-black text-gray-800 mb-6">Equipe Cadastrada</h2>
               <div className="grid grid-cols-1 gap-4">
@@ -232,11 +228,7 @@ function App() {
             </div>
           </div>
         ) : (
-
-        /* ABA 2: PAINEL DE ESTOQUE (PADRÃO) */
         <div className="animate-in fade-in duration-500">
-          
-          {/* CARDS DE INDICADORES */}
           <div className={`grid grid-cols-1 ${isAdmin ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-6 mb-10`}>
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-5">
               <div className="bg-blue-50 p-4 rounded-2xl text-blue-600"><Box size={32} /></div>
@@ -256,7 +248,6 @@ function App() {
             </div>
           </div>
 
-          {/* GRÁFICOS */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
               <h3 className="text-gray-800 font-bold mb-6 flex items-center gap-2 text-lg"><PieIcon size={22} className="text-blue-600" /> Performance de Saídas</h3>
@@ -286,8 +277,6 @@ function App() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            
-            {/* FORMULÁRIO (SÓ ADMIN) */}
             {isAdmin && (
               <div className="bg-white p-6 lg:p-8 rounded-2xl shadow-sm border border-gray-100 h-fit">
                 <h2 className="text-xl font-black mb-6 text-gray-800 flex items-center gap-2">
@@ -327,7 +316,6 @@ function App() {
               </div>
             )}
 
-            {/* LISTA DE PRODUTOS */}
             <div className={`${isAdmin ? 'lg:col-span-2' : 'lg:col-span-3'} flex flex-col gap-4`}>
               <h2 className="text-xl font-black text-gray-800 mb-2">Catálogo de Produtos</h2>
               
@@ -373,7 +361,6 @@ function App() {
         )}
       </div>
 
-      {/* MODAL TRANSAÇÕES */}
       {modalAtivo && produtoSelecionado && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border border-gray-100">
